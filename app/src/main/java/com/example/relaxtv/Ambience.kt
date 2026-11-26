@@ -4,6 +4,7 @@ import androidx.annotation.DrawableRes
 
 data class Ambience(val id: String, val title: String, val description: String, @DrawableRes val image: Int) {
     val assetPath get() = "videos/$id.mp4"
+    val audioAssetPath get() = "audio/$id.mp3"
 }
 val ambiences = listOf(
     Ambience("lluvia", "Lluvia", "Una pausa al ritmo de la lluvia", R.drawable.ambience_rain),

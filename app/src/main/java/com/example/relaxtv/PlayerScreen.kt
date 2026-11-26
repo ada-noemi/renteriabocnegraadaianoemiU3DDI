@@ -1,5 +1,4 @@
 ﻿@file:OptIn(androidx.tv.material3.ExperimentalTvMaterial3Api::class)
-@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 package com.example.relaxtv
 
 import android.view.KeyEvent
@@ -20,55 +19,51 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.media3.common.AudioAttributes
-import androidx.media3.common.C
-import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackException
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.tv.material3.Text
 
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun PlayerScreen(ambience: Ambience, onBack: () -> Unit) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    var player by remember { mutableStateOf<ExoPlayer?>(null) }
+    var playback by remember { mutableStateOf<AmbientPlayback?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    var position by rememberSaveable { mutableLongStateOf(0L) }
+    var playing by remember { mutableStateOf(false) }
+    var ready by remember { mutableStateOf(false) }
+    var videoPosition by rememberSaveable { mutableLongStateOf(0L) }
+    var audioPosition by rememberSaveable { mutableLongStateOf(0L) }
     var shouldPlay by rememberSaveable { mutableStateOf(true) }
     val backFocus = remember { FocusRequester() }
+    val goBack by rememberUpdatedState(onBack)
 
-    // Release on STOP and when leaving; retain position and the user's pause state.
+    // Both players share one lifecycle and preserve their own loop positions.
     DisposableEffect(ambience.id, lifecycle) {
         fun release() {
-            player?.let {
-                position = it.currentPosition
-                shouldPlay = it.playWhenReady
+            playback?.let {
+                videoPosition = it.videoPosition
+                audioPosition = it.audioPosition
+                shouldPlay = it.wantsToPlay
                 it.release()
             }
-            player = null
+            playback = null
+            playing = false
+            ready = false
         }
         fun start() {
-            if (player != null || error != null) return
-            if (runCatching { context.assets.open(ambience.assetPath).use { } }.isFailure) {
-                error = "Falta ${ambience.id}.mp4. Colócalo en app/src/main/assets/videos/ y vuelve a compilar."
+            if (playback != null || error != null) return
+            val missing = listOf(ambience.assetPath, ambience.audioAssetPath).firstOrNull { path ->
+                runCatching { context.assets.open(path).use { } }.isFailure
+            }
+            if (missing != null) {
+                error = "Falta app/src/main/assets/$missing. Agrega el archivo y vuelve a compilar."
                 return
             }
-            player = ExoPlayer.Builder(context).build().apply {
-                setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
-                setHandleAudioBecomingNoisy(true)
-                repeatMode = Player.REPEAT_MODE_ONE
-                addListener(object : Player.Listener {
-                    override fun onPlayerError(exception: PlaybackException) {
-                        error = "No se pudo reproducir ${ambience.id}.mp4 (${exception.errorCodeName}). Verifica que tenga video y audio compatibles."
-                    }
-                })
-                setMediaItem(MediaItem.fromUri("asset:///${ambience.assetPath}"))
-                seekTo(position)
-                playWhenReady = shouldPlay
-                prepare()
-            }
+            playback = AmbientPlayback(
+                context, ambience, videoPosition, audioPosition, shouldPlay,
+                onState = { isPlaying, isReady -> playing = isPlaying; ready = isReady },
+                onError = { error = it }
+            )
         }
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -82,53 +77,59 @@ fun PlayerScreen(ambience: Ambience, onBack: () -> Unit) {
         onDispose { lifecycle.removeObserver(observer); release() }
     }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        val current = player
+        val current = playback
         if (error == null && current != null) {
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
-                factory = { ctx -> PlayerView(ctx).apply {
-                    useController = true
-                    controllerShowTimeoutMs = 3500
-                    setShowNextButton(false)
-                    setShowPreviousButton(false)
-                    setShowFastForwardButton(false)
-                    setShowRewindButton(false)
-                    setOnKeyListener { _, code, event ->
-                        val toggle = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER || code == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE || code == KeyEvent.KEYCODE_SPACE
-                        when {
-                            toggle -> {
+                factory = { ctx ->
+                    // Intercept media keys before PlayerView can change only the video.
+                    object : PlayerView(ctx) {
+                        override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                            val code = event.keyCode
+                            val toggle = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER ||
+                                code == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE || code == KeyEvent.KEYCODE_SPACE ||
+                                code == KeyEvent.KEYCODE_NUMPAD_ENTER
+                            if (toggle || code == KeyEvent.KEYCODE_MEDIA_PLAY || code == KeyEvent.KEYCODE_MEDIA_PAUSE) {
                                 if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
-                                    this.player?.let { if (it.playWhenReady) it.pause() else it.play() }
-                                    showController()
+                                    playback?.let { pair ->
+                                        pair.setPlaying(when (code) {
+                                            KeyEvent.KEYCODE_MEDIA_PLAY -> true
+                                            KeyEvent.KEYCODE_MEDIA_PAUSE -> false
+                                            else -> !pair.wantsToPlay
+                                        })
+                                    }
                                 }
-                                true
+                                return true
                             }
-                            code == KeyEvent.KEYCODE_BACK -> {
-                                if (event.action == KeyEvent.ACTION_UP) onBack()
-                                true
+                            if (code == KeyEvent.KEYCODE_BACK) {
+                                if (event.action == KeyEvent.ACTION_UP) goBack()
+                                return true
                             }
-                            else -> false
+                            return super.dispatchKeyEvent(event)
                         }
+                    }.apply {
+                        useController = false
+                        isFocusable = true
+                        isFocusableInTouchMode = true
+                        player = current.video
+                        requestFocus()
                     }
-                    isFocusable = true
-                    isFocusableInTouchMode = true
-                    this.player = current
-                    requestFocus()
-                } },
+                },
                 update = { view ->
-                    if (view.player !== current) { view.player = current; view.requestFocus() }
+                    if (view.player !== current.video) { view.player = current.video; view.requestFocus() }
                 },
                 onRelease = { it.player = null }
             )
         }
         Column(Modifier.align(Alignment.TopStart).background(Color(0xB3081522)).padding(horizontal = 32.dp, vertical = 12.dp)) {
             Text(ambience.title, color = Color.White, fontSize = 24.sp)
+            Text(when { error != null -> "Sin reproducción"; playing -> "Reproduciendo"; ready -> "En pausa"; else -> "Preparando ambiente…" }, color = Color.White, fontSize = 16.sp)
             Text("OK  Pausar / reanudar    •    Back  Volver", color = Accent, fontSize = 14.sp)
         }
         error?.let { message ->
-            LaunchedEffect(message) { player?.pause(); backFocus.requestFocus() }
+            LaunchedEffect(message) { playback?.setPlaying(false); backFocus.requestFocus() }
             Column(Modifier.align(Alignment.Center).widthIn(max = 620.dp).padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Video no disponible", color = Color.White, fontSize = 28.sp)
+                Text("Ambiente no disponible", color = Color.White, fontSize = 28.sp)
                 Spacer(Modifier.height(16.dp))
                 Text(message, color = Color(0xFFB7C9D8), fontSize = 18.sp)
                 Spacer(Modifier.height(24.dp))
