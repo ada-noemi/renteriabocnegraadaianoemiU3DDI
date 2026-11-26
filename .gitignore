@@ -13,3 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Archivos locales de Android Studio y registros de compilación
+/.idea/
+*.log
