@@ -1,0 +1,123 @@
+﻿RELAXTV — GUÍA DE EJECUCIÓN Y REPORTE
+Actividad: APP Pantallas Inteligentes
+Fecha de implementación: 25 de noviembre de 2026
+
+1. Herramientas y configuración
+Proyecto original Television / Empty Activity, conservando paquete com.example.relaxtv.
+Kotlin y Compose; AndroidX TV Material; Media3 ExoPlayer y PlayerView.
+Versiones del proyecto: AGP 9.4.1, Gradle 9.6.0, Kotlin Compose 2.2.10,
+Compose BOM 2026.02.01, minSdk 26 y compile/targetSdk 37.
+Media3 agregado: 1.11.1. Java disponible: Android Studio JBR 25.0.3.
+Registrar en la entrega la versión de Android Studio desde Help > About.
+El APK usa medios internos; no requiere Internet ni permisos de almacenamiento.
+La primera sincronización/compilación necesita descargar dependencias.
+
+2. Videos obligatorios antes de la prueba funcional
+Videos locales actuales (conservados sin modificar):
+app/src/main/assets/videos/lluvia.mp4
+app/src/main/assets/videos/chimenea.mp4
+app/src/main/assets/videos/oceano.mp4
+Preferir video H.264, 720p o 1080p. La extensión MP4 no garantiza codecs compatibles.
+Volver a compilar después de agregar o sustituir videos. Ya se incluyen los tres MP4 y los tres MP3 locales.
+Si falta un video o falla su decodificación, aparece un error y se puede volver.
+No hay reproducción simulada ni enlaces externos.
+
+3. Emulador Android TV
+En Android Studio abrir este mismo proyecto y sincronizar Gradle.
+Tools > Device Manager > Create Virtual Device > TV > Android TV (1080p).
+Elegir una imagen de Android TV API 26 o superior compatible con el equipo
+(preferentemente API 35 o superior para pruebas). Descargar y finalizar el AVD.
+Iniciar el AVD, seleccionarlo como destino y ejecutar el módulo app con Run.
+Usar las flechas y OK del control remoto en Extended Controls, o teclado.
+En el menú: izquierda/derecha seleccionan y Enter abre el ambiente.
+En reproducción: OK/Enter pausa y reanuda; Back vuelve al menú.
+Registrar nombre del AVD, API, arquitectura, resolución y configuración gráfica.
+En esta sesión adb no mostró dispositivos y emulator -list-avds no mostró AVD.
+
+4. Compilación y APK
+Desde PowerShell en la raíz:
+$env:JAVA_HOME = 'C:/Program Files/Android/Android Studio/jbr'
+.\gradlew.bat :app:assembleDebug :app:lintDebug --console=plain
+Tras BUILD SUCCESSFUL, APK de prueba:
+app/build/outputs/apk/debug/app-debug.apk
+Instalar con Run o adb install -r app/build/outputs/apk/debug/app-debug.apk
+Para APK release firmado: Build > Generate Signed App Bundle or APK > APK.
+Crear/seleccionar keystore, elegir release y conservar la clave fuera de GitHub.
+El APK debug es suficiente para instalación y evaluación local si el profesor lo admite.
+No confundir código fuente con APK; entregar ambos.
+
+5. Organización para explicar el código
+MainActivity.kt: pantalla activa, Back y conservación de selección.
+Ambience.kt: catálogo de tres ambientes, imágenes y rutas locales.
+HomeScreen.kt: tarjetas Compose, navegación por foco y resaltado.
+PlayerScreen.kt: ExoPlayer, audio, bucle, errores, controles y ciclo de vida.
+ui/theme/Theme.kt: tema oscuro.
+AndroidManifest.xml: launcher TV, orientación horizontal, banner e icono.
+res/drawable: ilustraciones vectoriales, icono y banner 320 x 180 con nombre.
+El reproductor se crea en START y se libera en STOP o al salir de la pantalla.
+Conserva posición y estado de pausa al regresar desde segundo plano.
+
+6. Pruebas manuales pendientes y evidencias
+- Captura de Help > About, SDK Manager y configuración del AVD.
+- Launcher de Android TV mostrando RelaxTV y su banner.
+- Menú completo, con cada tarjeta enfocada para evidenciar navegación.
+- Lluvia reproduciendo; repetir para Chimenea y Océano. Confirmar audio real.
+- Pausa con OK: imagen detenida; reanudar y confirmar avance y audio.
+- Esperar el final de un archivo y confirmar que reinicia automáticamente.
+- Back durante reproducción: menú con foco en el último ambiente.
+- Salir con Home: confirmar que no sigue sonando; volver y revisar posición.
+- Desactivar conexión y verificar los tres ambientes con medios locales.
+- Sin un archivo: comprobar error y regreso con Back/OK sin cierre inesperado.
+- Captura de BUILD SUCCESSFUL y del APK generado.
+Una captura no demuestra audio o bucle: describir la prueba y, si se permite,
+adjuntar una grabación breve. No marcar pruebas como aprobadas sin ejecutarlas.
+
+7. Entrega
+Classroom: reporte con datos del alumno, herramientas, AVD, funcionalidades,
+capturas reales, código en texto plano y APK generado tras incluir los MP4.
+GitHub: subir fuentes, wrapper Gradle, recursos y documentación; omitir
+local.properties, .gradle, build y credenciales. Esta carpeta no era un repositorio
+Git al inspeccionarla; no se ha creado ni publicado un repositorio remoto.
+Usar videos propios o con autorización y documentar sus créditos.
+Si los medios superan límites de GitHub, usar Git LFS o indicar su descarga
+para desarrollo. El APK entregado debe llevar los tres videos y los tres audios integrados.
+
+Referencia técnica: https://developer.android.com/media/media3/exoplayer/hello-world
+Ciclo de vida: https://developer.android.com/media/implement/playback-app
+
+8. Resultado real de verificaciones
+:app:assembleDebug y :app:lintDebug finalizaron con BUILD SUCCESSFUL.
+Comando final: .\gradlew.bat :app:assembleDebug :app:lintDebug --offline --no-daemon --no-configuration-cache --console=plain
+Registro: build-final.log. Informe lint: app/build/reports/lint-results-debug.html.
+Se generó app/build/outputs/apk/debug/app-debug.apk (resultado de la versión inicial; consultar actualización de audio al final).
+Los XML se analizaron sin errores. No se ejecutaron pruebas en emulador:
+no hay AVD configurado ni dispositivo conectado. Audio, video, controles,
+bucle y ciclo de vida requieren las pruebas manuales de la sección 6.
+Advertencias de compilación no bloqueantes: destino de @DrawableRes y
+libandroidx.graphics.path.so empaquetada sin eliminar símbolos.
+Lint finalizó sin errores y con seis advertencias: tres ilustraciones vectoriales
+mayores a 200 dp, orientación fija, icono original de plantilla sin uso y banner
+PNG en carpeta drawable sin densidad. Ver el informe HTML para detalle.
+Estas advertencias no impidieron generar el APK; la orientación está prevista
+para TV y los recursos requieren revisión visual en el emulador.
+
+
+ACTUALIZACIÓN: AUDIO AMBIENTAL INDEPENDIENTE
+Se conservan los tres MP4 originales. Los MP3 encontrados en assets/audios/
+se trasladaron a assets/audio/ para respetar las rutas solicitadas:
+app/src/main/assets/audio/lluvia.mp3
+app/src/main/assets/audio/chimenea.mp3
+app/src/main/assets/audio/oceano.mp3
+AmbientPlayback.kt controla dos ExoPlayer: uno de video silenciado y otro de audio.
+Se preparan ambos antes de iniciar. Cada medio repite su propio bucle, aunque
+sus duraciones difieran. OK/Enter pausa y reanuda los dos en su posición actual.
+Back y ON_STOP liberan ambos. Al volver desde segundo plano se recuperan sus
+posiciones independientes y el estado de pausa. Solo el audio solicita foco.
+La falta o error de cualquiera de los medios impide continuar el ambiente.
+Prueba manual adicional: comprobar sonido en los tres ambientes; pausar ambos,
+esperar y reanudar; repetir varios bucles; volver al menú y comprobar silencio.
+Verificación de la actualización de audio:
+:app:assembleDebug y :app:lintDebug: BUILD SUCCESSFUL (build-audio-verified.log).
+Se inspeccionó el APK: contiene los tres MP4 y tres MP3 en las rutas esperadas,
+con tamaños iguales a los archivos locales. El APK actual incluye los medios.
+No se ejecutó la reproducción en emulador: no hay AVD ni dispositivo conectado.

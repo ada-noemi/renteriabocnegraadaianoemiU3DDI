@@ -1,0 +1,613 @@
+﻿
+ARCHIVO: app/build.gradle.kts
+
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.compose)
+}
+
+android {
+    namespace = "com.example.relaxtv"
+    compileSdk {
+        version = release(37)
+    }
+
+    defaultConfig {
+        applicationId = "com.example.relaxtv"
+        minSdk = 26
+        targetSdk = 37
+        versionCode = 1
+        versionName = "1.0"
+
+    }
+
+    buildTypes {
+        release {
+            optimization {
+                enable = true
+                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
+            }
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+    buildFeatures {
+        compose = true
+    }
+}
+
+dependencies {
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.tv.foundation)
+    implementation(libs.androidx.tv.material)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    debugImplementation(libs.androidx.compose.ui.tooling)
+}
+
+
+
+ARCHIVO: gradle/libs.versions.toml
+
+[versions]
+agp = "9.4.1"
+coreKtx = "1.19.1"
+appcompat = "1.6.1"
+kotlin = "2.2.10"
+composeBom = "2026.02.01"
+tvFoundation = "1.0.0-alpha07"
+tvMaterial = "1.0.0-alpha07"
+lifecycleRuntimeKtx = "2.11.0"
+activityCompose = "1.13.0"
+
+[libraries]
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleRuntimeKtx" }
+androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version = "1.11.1" }
+androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version = "1.11.1" }
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+androidx-tv-foundation = { group = "androidx.tv", name = "tv-foundation", version.ref = "tvFoundation" }
+androidx-tv-material = { group = "androidx.tv", name = "tv-material", version.ref = "tvMaterial" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+
+
+
+
+
+ARCHIVO: app/src/main/AndroidManifest.xml
+
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+    <uses-feature
+        android:name="android.software.leanback"
+        android:required="true" />
+
+    <application
+        android:allowBackup="true"
+        android:banner="@drawable/tv_banner"
+        android:icon="@drawable/ic_relaxtv"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.RelaxTV">
+        <activity
+            android:name=".MainActivity" android:screenOrientation="landscape"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
+
+
+
+ARCHIVO: C:\Users\lenovo\AndroidStudioProjects\RelaxTV\app\src\main\java\com\example\relaxtv\Ambience.kt
+
+package com.example.relaxtv
+
+import androidx.annotation.DrawableRes
+
+data class Ambience(val id: String, val title: String, val description: String, @DrawableRes val image: Int) {
+    val assetPath get() = "videos/$id.mp4"
+    val audioAssetPath get() = "audio/$id.mp3"
+}
+val ambiences = listOf(
+    Ambience("lluvia", "Lluvia", "Una pausa al ritmo de la lluvia", R.drawable.ambience_rain),
+    Ambience("chimenea", "Chimenea", "La calidez de un momento tranquilo", R.drawable.ambience_fire),
+    Ambience("oceano", "Océano", "Respira al compás de las olas", R.drawable.ambience_ocean)
+)
+
+
+ARCHIVO: C:\Users\lenovo\AndroidStudioProjects\RelaxTV\app\src\main\java\com\example\relaxtv\AmbientPlayback.kt
+
+package com.example.relaxtv
+
+import android.content.Context
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+
+/** Owns the video/audio pair. All calls and listener events run on the main thread. */
+internal class AmbientPlayback(
+    context: Context,
+    ambience: Ambience,
+    initialVideoPosition: Long,
+    initialAudioPosition: Long,
+    initiallyPlaying: Boolean,
+    private val onState: (playing: Boolean, ready: Boolean) -> Unit,
+    private val onError: (String) -> Unit,
+) {
+    val video = ExoPlayer.Builder(context).build()
+    private val audio = ExoPlayer.Builder(context).build()
+    var wantsToPlay = initiallyPlaying
+        private set
+    val videoPosition get() = video.currentPosition
+    val audioPosition get() = audio.currentPosition
+    private var released = false
+    private var failed = false
+    private var updating = false
+
+    init {
+        // Only the audio player requests focus; mute any embedded video soundtrack.
+        video.volume = 0f
+        audio.setAudioAttributes(
+            AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true
+        )
+        audio.setHandleAudioBecomingNoisy(true)
+        listOf(video to ambience.assetPath, audio to ambience.audioAssetPath).forEach { (player, path) ->
+            player.repeatMode = Player.REPEAT_MODE_ONE
+            player.addListener(object : Player.Listener {
+                override fun onEvents(player: Player, events: Player.Events) = synchronize()
+
+                override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                    if (player === audio && !playWhenReady &&
+                        (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS ||
+                            reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY)) {
+                        setPlaying(false)
+                    }
+                }
+
+                override fun onPlayerError(error: PlaybackException) {
+                    if (released || failed) return
+                    failed = true
+                    wantsToPlay = false
+                    video.pause()
+                    audio.pause()
+                    onState(false, false)
+                    onError("No se pudo reproducir $path (${error.errorCodeName}). Verifica el archivo local.")
+                }
+            })
+            player.setMediaItem(MediaItem.fromUri("asset:///$path"))
+        }
+        video.seekTo(initialVideoPosition)
+        audio.seekTo(initialAudioPosition)
+        video.prepare()
+        audio.prepare()
+    }
+
+    fun setPlaying(play: Boolean) {
+        if (released || failed) return
+        wantsToPlay = play
+        synchronize()
+    }
+
+    private fun synchronize() {
+        if (released || failed || updating) return
+        updating = true
+        try {
+            val ready = video.playbackState == Player.STATE_READY && audio.playbackState == Player.STATE_READY
+            val play = wantsToPlay && ready
+            audio.playWhenReady = play
+            video.playWhenReady = play && audio.playbackSuppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_NONE
+            onState(video.isPlaying && audio.isPlaying, ready)
+        } finally {
+            updating = false
+        }
+    }
+
+    fun release() {
+        if (released) return
+        released = true
+        video.release()
+        audio.release()
+    }
+}
+
+
+ARCHIVO: C:\Users\lenovo\AndroidStudioProjects\RelaxTV\app\src\main\java\com\example\relaxtv\HomeScreen.kt
+
+@file:OptIn(androidx.tv.material3.ExperimentalTvMaterial3Api::class)
+package com.example.relaxtv
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.tv.material3.Text
+
+internal val Night = Color(0xFF081522)
+internal val Accent = Color(0xFF80DECF)
+
+@Composable
+fun HomeScreen(lastSelected: String, onSelect: (Ambience) -> Unit) {
+    val requester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { requester.requestFocus() }
+    Column(Modifier.fillMaxSize().background(Night).padding(horizontal = 48.dp, vertical = 32.dp)) {
+        Text("RelaxTV", color = Color.White, fontSize = 34.sp)
+        Spacer(Modifier.height(8.dp))
+        Text("Elige tu ambiente y disfruta de un momento de calma", color = Color(0xFFB7C9D8), fontSize = 18.sp)
+        Spacer(Modifier.weight(1f))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            ambiences.forEach { ambience ->
+                var focused by remember { mutableStateOf(false) }
+                val shape = RoundedCornerShape(18.dp)
+                Column(Modifier.weight(1f)
+                    .then(if (ambience.id == lastSelected) Modifier.focusRequester(requester) else Modifier)
+                    .onFocusChanged { focused = it.isFocused }.clip(shape)
+                    .background(if (focused) Color(0xFF203F50) else Color(0xFF122737))
+                    .border(if (focused) 3.dp else 1.dp, if (focused) Accent else Color(0xFF294252), shape)
+                    .clickable { onSelect(ambience) }) {
+                    Image(painterResource(ambience.image), ambience.title, Modifier.fillMaxWidth().aspectRatio(1.8f), contentScale = ContentScale.Crop)
+                    Column(Modifier.padding(16.dp)) {
+                        Text(ambience.title, color = Color.White, fontSize = 24.sp)
+                        Spacer(Modifier.height(6.dp))
+                        Text(ambience.description, color = Color(0xFFB7C9D8), fontSize = 14.sp)
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        Text("← →  Elegir ambiente     •     OK  Reproducir", color = Accent, fontSize = 16.sp)
+    }
+}
+
+
+ARCHIVO: C:\Users\lenovo\AndroidStudioProjects\RelaxTV\app\src\main\java\com\example\relaxtv\MainActivity.kt
+
+package com.example.relaxtv
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import com.example.relaxtv.ui.theme.RelaxTVTheme
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            hide(WindowInsetsCompat.Type.systemBars())
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+        setContent {
+            RelaxTVTheme {
+                var selected by rememberSaveable { mutableStateOf<String?>(null) }
+                var lastSelected by rememberSaveable { mutableStateOf("lluvia") }
+                val ambience = ambiences.firstOrNull { it.id == selected }
+                BackHandler(enabled = ambience != null) { selected = null }
+                if (ambience == null) HomeScreen(lastSelected) {
+                    lastSelected = it.id
+                    selected = it.id
+                } else key(ambience.id) { PlayerScreen(ambience) { selected = null } }
+            }
+        }
+    }
+}
+
+
+ARCHIVO: C:\Users\lenovo\AndroidStudioProjects\RelaxTV\app\src\main\java\com\example\relaxtv\PlayerScreen.kt
+
+@file:OptIn(androidx.tv.material3.ExperimentalTvMaterial3Api::class)
+package com.example.relaxtv
+
+import android.view.KeyEvent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.media3.ui.PlayerView
+import androidx.tv.material3.Text
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@Composable
+fun PlayerScreen(ambience: Ambience, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    var playback by remember { mutableStateOf<AmbientPlayback?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var playing by remember { mutableStateOf(false) }
+    var ready by remember { mutableStateOf(false) }
+    var videoPosition by rememberSaveable { mutableLongStateOf(0L) }
+    var audioPosition by rememberSaveable { mutableLongStateOf(0L) }
+    var shouldPlay by rememberSaveable { mutableStateOf(true) }
+    val backFocus = remember { FocusRequester() }
+    val goBack by rememberUpdatedState(onBack)
+
+    // Both players share one lifecycle and preserve their own loop positions.
+    DisposableEffect(ambience.id, lifecycle) {
+        fun release() {
+            playback?.let {
+                videoPosition = it.videoPosition
+                audioPosition = it.audioPosition
+                shouldPlay = it.wantsToPlay
+                it.release()
+            }
+            playback = null
+            playing = false
+            ready = false
+        }
+        fun start() {
+            if (playback != null || error != null) return
+            val missing = listOf(ambience.assetPath, ambience.audioAssetPath).firstOrNull { path ->
+                runCatching { context.assets.open(path).use { } }.isFailure
+            }
+            if (missing != null) {
+                error = "Falta app/src/main/assets/$missing. Agrega el archivo y vuelve a compilar."
+                return
+            }
+            playback = AmbientPlayback(
+                context, ambience, videoPosition, audioPosition, shouldPlay,
+                onState = { isPlaying, isReady -> playing = isPlaying; ready = isReady },
+                onError = { error = it }
+            )
+        }
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> start()
+                Lifecycle.Event.ON_STOP -> release()
+                else -> Unit
+            }
+        }
+        lifecycle.addObserver(observer)
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) start()
+        onDispose { lifecycle.removeObserver(observer); release() }
+    }
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        val current = playback
+        if (error == null && current != null) {
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { ctx ->
+                    // Intercept media keys before PlayerView can change only the video.
+                    object : PlayerView(ctx) {
+                        override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                            val code = event.keyCode
+                            val toggle = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER ||
+                                code == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE || code == KeyEvent.KEYCODE_SPACE ||
+                                code == KeyEvent.KEYCODE_NUMPAD_ENTER
+                            if (toggle || code == KeyEvent.KEYCODE_MEDIA_PLAY || code == KeyEvent.KEYCODE_MEDIA_PAUSE) {
+                                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                                    playback?.let { pair ->
+                                        pair.setPlaying(when (code) {
+                                            KeyEvent.KEYCODE_MEDIA_PLAY -> true
+                                            KeyEvent.KEYCODE_MEDIA_PAUSE -> false
+                                            else -> !pair.wantsToPlay
+                                        })
+                                    }
+                                }
+                                return true
+                            }
+                            if (code == KeyEvent.KEYCODE_BACK) {
+                                if (event.action == KeyEvent.ACTION_UP) goBack()
+                                return true
+                            }
+                            return super.dispatchKeyEvent(event)
+                        }
+                    }.apply {
+                        useController = false
+                        isFocusable = true
+                        isFocusableInTouchMode = true
+                        player = current.video
+                        requestFocus()
+                    }
+                },
+                update = { view ->
+                    if (view.player !== current.video) { view.player = current.video; view.requestFocus() }
+                },
+                onRelease = { it.player = null }
+            )
+        }
+        Column(Modifier.align(Alignment.TopStart).background(Color(0xB3081522)).padding(horizontal = 32.dp, vertical = 12.dp)) {
+            Text(ambience.title, color = Color.White, fontSize = 24.sp)
+            Text(when { error != null -> "Sin reproducción"; playing -> "Reproduciendo"; ready -> "En pausa"; else -> "Preparando ambiente…" }, color = Color.White, fontSize = 16.sp)
+            Text("OK  Pausar / reanudar    •    Back  Volver", color = Accent, fontSize = 14.sp)
+        }
+        error?.let { message ->
+            LaunchedEffect(message) { playback?.setPlaying(false); backFocus.requestFocus() }
+            Column(Modifier.align(Alignment.Center).widthIn(max = 620.dp).padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Ambiente no disponible", color = Color.White, fontSize = 28.sp)
+                Spacer(Modifier.height(16.dp))
+                Text(message, color = Color(0xFFB7C9D8), fontSize = 18.sp)
+                Spacer(Modifier.height(24.dp))
+                Text("← Volver al menú", color = Accent, fontSize = 22.sp,
+                    modifier = Modifier.focusRequester(backFocus).clickable(onClick = onBack).padding(16.dp))
+            }
+        }
+    }
+}
+
+
+ARCHIVO: C:\Users\lenovo\AndroidStudioProjects\RelaxTV\app\src\main\java\com\example\relaxtv\ui\theme\Color.kt
+
+package com.example.relaxtv.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+val Purple80 = Color(0xFFD0BCFF)
+val PurpleGrey80 = Color(0xFFCCC2DC)
+val Pink80 = Color(0xFFEFB8C8)
+
+val Purple40 = Color(0xFF6650a4)
+val PurpleGrey40 = Color(0xFF625b71)
+val Pink40 = Color(0xFF7D5260)
+
+ARCHIVO: C:\Users\lenovo\AndroidStudioProjects\RelaxTV\app\src\main\java\com\example\relaxtv\ui\theme\Theme.kt
+
+package com.example.relaxtv.ui.theme
+
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.tv.material3.ExperimentalTvMaterial3Api
+import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.darkColorScheme
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+fun RelaxTVTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = darkColorScheme(primary = Color(0xFF80DECF), background = Color(0xFF081522)),
+        typography = Typography,
+        content = content
+    )
+}
+
+
+ARCHIVO: C:\Users\lenovo\AndroidStudioProjects\RelaxTV\app\src\main\java\com\example\relaxtv\ui\theme\Type.kt
+
+package com.example.relaxtv.ui.theme
+
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import androidx.tv.material3.ExperimentalTvMaterial3Api
+import androidx.tv.material3.Typography
+
+// Set of Material typography styles to start with
+@OptIn(ExperimentalTvMaterial3Api::class)
+val Typography = Typography(
+    bodyLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.5.sp
+    )
+    /* Other default text styles to override
+    titleLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        letterSpacing = 0.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp
+    )
+    */
+)
+
+ARCHIVO: C:\Users\lenovo\AndroidStudioProjects\RelaxTV\app\src\main\res\drawable\ambience_fire.xml
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="360dp" android:height="200dp" android:viewportWidth="360" android:viewportHeight="200">
+ <path android:fillColor="#2D2028" android:pathData="M0,0h360v200h-360z"/>
+ <path android:fillColor="#6D4C46" android:pathData="M55,20h250v175h-250z"/>
+ <path android:fillColor="#170F19" android:pathData="M80,45h200v130h-200z"/>
+ <path android:fillColor="#EE7846" android:pathData="M180,40C195,90 245,100 230,145C215,190 140,190 125,150C110,115 155,95 145,70C170,82 160,102 175,108C190,90 170,72 180,40"/>
+ <path android:fillColor="#FFD185" android:pathData="M180,100C175,132 210,140 194,160C165,185 145,155 160,140Z"/>
+ <path android:strokeColor="#9B6D50" android:strokeWidth="12" android:strokeLineCap="round" android:pathData="M125,180L230,163M130,163L225,180"/>
+</vector>
+
+
+ARCHIVO: C:\Users\lenovo\AndroidStudioProjects\RelaxTV\app\src\main\res\drawable\ambience_ocean.xml
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="360dp" android:height="200dp" android:viewportWidth="360" android:viewportHeight="200">
+ <path android:fillColor="#294D6A" android:pathData="M0,0h360v200h-360z"/>
+ <path android:fillColor="#FFD6A0" android:pathData="M245,65a25,25 0,1 0,50 0a25,25 0,1 0,-50 0"/>
+ <path android:fillColor="#267E98" android:pathData="M0,108Q45,80 90,108T180,108T270,108T360,108V200H0Z"/>
+ <path android:fillColor="#43ACB9" android:pathData="M0,145Q45,115 90,145T180,145T270,145T360,145V200H0Z"/>
+ <path android:strokeColor="#B6E8DF" android:strokeWidth="3" android:fillColor="#00000000" android:pathData="M0,155Q45,125 90,155T180,155T270,155T360,155"/>
+ <path android:fillColor="#1C5B75" android:pathData="M0,185Q45,155 90,185T180,185T270,185T360,185V200H0Z"/>
+</vector>
+
+
+ARCHIVO: C:\Users\lenovo\AndroidStudioProjects\RelaxTV\app\src\main\res\drawable\ambience_rain.xml
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="360dp" android:height="200dp" android:viewportWidth="360" android:viewportHeight="200">
+ <path android:fillColor="#18364C" android:pathData="M0,0h360v200h-360z"/>
+ <path android:fillColor="#42617A" android:pathData="M40,65C30,20 95,10 115,40C145,0 210,15 215,45C265,25 300,60 280,90H60C30,90 25,75 40,65"/>
+ <path android:strokeColor="#91D9ED" android:strokeWidth="5" android:strokeLineCap="round" android:pathData="M65,115l-12,25M125,110l-12,25M185,115l-12,25M245,110l-12,25M95,155l-12,25M155,150l-12,25M215,155l-12,25M275,150l-12,25"/>
+</vector>
+
+
+ARCHIVO: C:\Users\lenovo\AndroidStudioProjects\RelaxTV\app\src\main\res\drawable\ic_relaxtv.xml
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+ <path android:fillColor="#081522" android:pathData="M0,0h108v108h-108z"/>
+ <path android:strokeColor="#80DECF" android:strokeWidth="5" android:fillColor="#00000000" android:strokeLineCap="round" android:pathData="M22,40h64v40h-64zM40,89h28M35,58q10,-12 20,0t20,0"/>
+</vector>
+
