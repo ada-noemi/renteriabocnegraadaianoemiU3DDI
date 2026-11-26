@@ -1,0 +1,3 @@
+﻿Los MP4 de esta carpeta se conservan sin modificaciones. El sonido se reproduce
+por separado desde assets/audio/lluvia.mp3, chimenea.mp3 y oceano.mp3.
+Audio y video repiten sus propios bucles y se pausan/reanudan juntos.
